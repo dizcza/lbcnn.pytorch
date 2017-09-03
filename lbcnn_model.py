@@ -1,9 +1,4 @@
 import torch
-import torchvision
-import torchvision.transforms as transforms
-import torch.optim as optim
-
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -29,8 +24,8 @@ class BlockLBP(nn.Module):
         self.conv_1x1 = nn.Conv2d(numWeights, numChannels, kernel_size=1)
 
     def forward(self, x):
-        x = self.batch_norm(x)
         residual = x
+        x = self.batch_norm(x)
         x = F.relu(self.conv_lbp(x))
         x = self.conv_1x1(x)
         x += residual
@@ -47,24 +42,8 @@ class Lbcnn(nn.Module):
             nn.ReLU(inplace=True)
         )
 
-        chain = []
-        for block_id in range(depth):
-            basic_block = nn.Sequential(
-                nn.BatchNorm2d(numChannels),
-                ConvLBP(numChannels, numWeights, kernel_size=3),
-                nn.ReLU(),
-                nn.Conv2d(numWeights, numChannels, kernel_size=1)
-            )
-            chain.append(basic_block)
+        chain = [BlockLBP(numChannels, numWeights) for i in range(depth)]
         self.chained_blocks = nn.Sequential(*chain)
-
-        # self.chained_blocks = nn.Sequential(
-        #     nn.BatchNorm2d(numChannels),
-        #     ConvLBP(numChannels, numWeights, kernel_size=3),
-        #     nn.ReLU(),
-        #     nn.Conv2d(numWeights, numChannels, kernel_size=1)
-        # )
-
         self.pool = nn.AvgPool2d(kernel_size=5, stride=5)
 
         self.__fc1_dimension_in = numChannels * 6 * 6
@@ -81,93 +60,3 @@ class Lbcnn(nn.Module):
         x = F.relu(x)
         x = self.fc2(self.dropout(x))
         return x
-
-
-transform = transforms.Compose(
-    [transforms.ToTensor(),
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-classes = ('plane', 'car', 'bird', 'cat',
-           'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-
-BATCH_SIZE = 8
-
-
-def do_train():
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                            download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
-                                              shuffle=True, num_workers=2)
-
-    net = Lbcnn()
-    net.cuda()
-    # net = torch.load('lbcnn.pt')
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(filter(lambda param: param.requires_grad, net.parameters()), lr=0.001, momentum=0.9)
-
-    for epoch in range(5):  # loop over the dataset multiple times
-
-        running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            inputs, labels = data
-            inputs = inputs.cuda()
-            labels = labels.cuda()
-            inputs, labels = Variable(inputs), Variable(labels)
-            optimizer.zero_grad()
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.data[0]
-            if i % 200 == 0:  # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
-                running_loss = 0.0
-    torch.save(net, 'lbcnn.pt')
-    print('Finished Training')
-
-
-def do_test():
-    net = torch.load('lbcnn.pt')
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
-                                             shuffle=False, num_workers=2)
-    correct = 0
-    total = 0
-    for data in testloader:
-        images, labels = data
-        images = images.cuda()
-        labels = labels.cuda()
-        outputs = net(Variable(images))
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum()
-
-    print('Accuracy of the network on the 10000 test images: %d %%' % (
-        100 * correct / total))
-
-    class_correct = list(0. for i in range(10))
-    class_total = list(0. for i in range(10))
-    for data in testloader:
-        images, labels = data
-        images = images.cuda()
-        labels = labels.cuda()
-
-        outputs = net(Variable(images))
-        _, predicted = torch.max(outputs.data, 1)
-        c = (predicted == labels).squeeze()
-        for i in range(4):
-            label = labels[i]
-            class_correct[label] += c[i]
-            class_total[label] += 1
-
-    for i in range(10):
-        print('Accuracy of %5s : %2d %%' % (
-            classes[i], 100 * class_correct[i] / class_total[i]))
-
-
-
-if __name__ == '__main__':
-    do_train()
-    do_test()
