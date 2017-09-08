@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 class ConvLBP(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, sparsity=0.9):
+        # todo: try adding bias
         super().__init__(in_channels, out_channels, kernel_size, padding=1, bias=False)
         weights = next(self.parameters())
         matrix_proba = torch.FloatTensor(weights.data.shape).fill_(0.5)
@@ -28,12 +29,12 @@ class BlockLBP(nn.Module):
         x = self.batch_norm(x)
         x = F.relu(self.conv_lbp(x))
         x = self.conv_1x1(x)
-        x += residual
+        x.add_(residual)
         return x
 
 
 class Lbcnn(nn.Module):
-    def __init__(self, numChannels=128, numWeights=512, full=512, depth=1):
+    def __init__(self, numChannels=128, numWeights=512, full=512, depth=5):
         super().__init__()
 
         self.preprocess_block = nn.Sequential(
@@ -59,4 +60,5 @@ class Lbcnn(nn.Module):
         x = self.fc1(self.dropout(x))
         x = F.relu(x)
         x = self.fc2(self.dropout(x))
+        # todo: try adding relu in the end
         return x

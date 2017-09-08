@@ -1,7 +1,9 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
+import torch.optim.lr_scheduler
 import torch.optim as optim
+import torch.utils.data
 
 from torch.autograd import Variable
 import torch.nn as nn
@@ -22,9 +24,13 @@ def train():
     net = Lbcnn()
     net.cuda()
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(filter(lambda param: param.requires_grad, net.parameters()), lr=0.0005, momentum=0.9)
+    optimizer = optim.SGD(filter(lambda param: param.requires_grad, net.parameters()), lr=1e-4, momentum=0.9,
+                          weight_decay=1e-4, nesterov=True)
 
-    for epoch in range(5):  # loop over the dataset multiple times
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5)
+
+    for epoch in range(50):
+        scheduler.step()
 
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -40,8 +46,8 @@ def train():
 
             running_loss += loss.data[0]
             if i % 200 == 0:  # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
+                print('[%d, %5d] loss: %.3f  lr=%f' %
+                      (epoch + 1, i + 1, running_loss / 2000, scheduler.get_lr()[0]))
                 running_loss = 0.0
     torch.save(net, 'lbcnn.pt')
     print('Finished Training')
