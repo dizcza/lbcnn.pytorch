@@ -10,7 +10,7 @@ def do_test():
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    net = torch.load('lbcnn.pt')
+    model = torch.load('lbcnn.pt')
     testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                            download=True, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=8,
@@ -19,12 +19,12 @@ def do_test():
     total = 0
     for data in testloader:
         images, labels = data
-        images = images.cuda()
+        images = Variable(images.cuda())
         labels = labels.cuda()
-        outputs = net(Variable(images))
-        _, predicted = torch.max(outputs.data, 1)
+        predicted_proba = model(images)
+        predicted_labels = torch.max(predicted_proba.data, dim=1)[1]
         total += labels.size(0)
-        correct += (predicted == labels).sum()
+        correct += (predicted_labels == labels).sum()
 
     print('Accuracy of the network on the 10000 test images: %d %%' % (
         100 * correct / total))
@@ -33,12 +33,12 @@ def do_test():
     class_total = list(0. for i in range(10))
     for data in testloader:
         images, labels = data
-        images = images.cuda()
+        images = Variable(images.cuda())
         labels = labels.cuda()
 
-        outputs = net(Variable(images))
-        _, predicted = torch.max(outputs.data, 1)
-        c = (predicted == labels).squeeze()
+        predicted_proba = model(images)
+        predicted_labels = torch.max(predicted_proba.data, dim=1)[1]
+        c = (predicted_labels == labels).squeeze()
         for i in range(4):
             label = labels[i]
             class_correct[label] += c[i]
