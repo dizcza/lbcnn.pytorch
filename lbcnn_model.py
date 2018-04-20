@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class ConvLBP(nn.Conv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, sparsity=0.9):
+    def __init__(self, in_channels, out_channels, kernel_size=3, sparsity=0.5):
         super().__init__(in_channels, out_channels, kernel_size, padding=1, bias=False)
         weights = next(self.parameters())
         matrix_proba = torch.FloatTensor(weights.data.shape).fill_(0.5)
@@ -17,10 +17,10 @@ class ConvLBP(nn.Conv2d):
 
 class BlockLBP(nn.Module):
 
-    def __init__(self, numChannels, numWeights):
+    def __init__(self, numChannels, numWeights, sparsity=0.5):
         super().__init__()
         self.batch_norm = nn.BatchNorm2d(numChannels)
-        self.conv_lbp = ConvLBP(numChannels, numWeights, kernel_size=3)
+        self.conv_lbp = ConvLBP(numChannels, numWeights, kernel_size=3, sparsity=sparsity)
         self.conv_1x1 = nn.Conv2d(numWeights, numChannels, kernel_size=1)
 
     def forward(self, x):
@@ -33,21 +33,21 @@ class BlockLBP(nn.Module):
 
 
 class Lbcnn(nn.Module):
-    def __init__(self, numChannels=128, numWeights=512, full=512, depth=5):
+    def __init__(self, nInputPlane=1, numChannels=8, numWeights=16, full=50, depth=2, sparsity=0.5):
         super().__init__()
 
         self.preprocess_block = nn.Sequential(
-            nn.Conv2d(3, numChannels, kernel_size=3, padding=1),
+            nn.Conv2d(nInputPlane, numChannels, kernel_size=3, padding=1),
             nn.BatchNorm2d(numChannels),
             nn.ReLU(inplace=True)
         )
 
-        chain = [BlockLBP(numChannels, numWeights) for i in range(depth)]
+        chain = [BlockLBP(numChannels, numWeights, sparsity) for i in range(depth)]
         self.chained_blocks = nn.Sequential(*chain)
         self.pool = nn.AvgPool2d(kernel_size=5, stride=5)
 
         self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(numChannels * 6 * 6, full)
+        self.fc1 = nn.Linear(numChannels * 5 * 5, full)
         self.fc2 = nn.Linear(full, 10)
 
     def forward(self, x):
