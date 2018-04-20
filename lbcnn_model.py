@@ -5,7 +5,6 @@ import torch.nn.functional as F
 
 class ConvLBP(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, sparsity=0.9):
-        # todo: try adding bias
         super().__init__(in_channels, out_channels, kernel_size, padding=1, bias=False)
         weights = next(self.parameters())
         matrix_proba = torch.FloatTensor(weights.data.shape).fill_(0.5)
@@ -47,18 +46,16 @@ class Lbcnn(nn.Module):
         self.chained_blocks = nn.Sequential(*chain)
         self.pool = nn.AvgPool2d(kernel_size=5, stride=5)
 
-        self.__fc1_dimension_in = numChannels * 6 * 6
         self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(self.__fc1_dimension_in, full)
+        self.fc1 = nn.Linear(numChannels * 6 * 6, full)
         self.fc2 = nn.Linear(full, 10)
 
     def forward(self, x):
         x = self.preprocess_block(x)
         x = self.chained_blocks(x)
         x = self.pool(x)
-        x = x.view(-1, self.__fc1_dimension_in)
+        x = x.view(x.shape[0], -1)
         x = self.fc1(self.dropout(x))
         x = F.relu(x)
         x = self.fc2(self.dropout(x))
-        # todo: try adding relu in the end
         return x
