@@ -1,5 +1,8 @@
-Pytorch implementation of CVPR'17 - Local Binary Convolutional Neural Networks.
-* paper: http://xujuefei.com/lbcnn.html
+### Pytorch implementation of CVPR'17 - Local Binary Convolutional Neural Networks
+
+Juefei-Xu, F., Naresh Boddeti, V., & Savvides, M. (2017). Local binary convolutional neural networks. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 19-28).
+
+* paper link: http://xujuefei.com/lbcnn.html
 * original Torch (Lua) repository: https://github.com/juefeix/lbcnn.torch
 
 Training even MNIST with parameters, stated in the original repository, is incredibly slow. Here is an example of training a toy model -- "2 x {BatchNorm2d(8) -> ConvLBP(8, 16, 3) -> Conv(16, 8, 1)} -> FC(200) -> FC(50) -> FC(10)" -- on MNIST:

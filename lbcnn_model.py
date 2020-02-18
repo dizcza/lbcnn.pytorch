@@ -12,7 +12,7 @@ class ConvLBP(nn.Conv2d):
         mask_inactive = torch.rand(matrix_proba.shape) > sparsity
         binary_weights.masked_fill_(mask_inactive, 0)
         weights.data = binary_weights
-        weights.requires_grad = False
+        weights.requires_grad_(False)
 
 
 class BlockLBP(nn.Module):

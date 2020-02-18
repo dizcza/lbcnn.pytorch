@@ -2,7 +2,6 @@ import torch
 import torch.utils.data
 import torchvision
 import torchvision.transforms as transforms
-from torch.autograd import Variable
 from tqdm import tqdm
 
 
@@ -40,12 +39,13 @@ def calc_accuracy(model, loader, verbose=False):
         if use_cuda:
             inputs = inputs.cuda()
             labels = labels.cuda()
-        outputs_batch = model(Variable(inputs, volatile=True))
+        with torch.no_grad():
+            outputs_batch = model(inputs)
         outputs_full.append(outputs_batch)
         labels_full.append(labels)
     model.train(mode_saved)
     outputs_full = torch.cat(outputs_full, dim=0)
     labels_full = torch.cat(labels_full, dim=0)
     _, labels_predicted = torch.max(outputs_full.data, dim=1)
-    accuracy = torch.sum(labels_full == labels_predicted) / len(labels_full)
+    accuracy = torch.sum(labels_full == labels_predicted).item() / float(len(labels_full))
     return accuracy
